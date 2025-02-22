@@ -146,21 +146,22 @@ describe("Onion Routing", () => {
         servers = await launchNetwork(1, 1);
 
         const isNodeLive = await fetch(
-          `http://localhost:${BASE_ONION_ROUTER_PORT + 0}/status`
+            `http://localhost:${BASE_ONION_ROUTER_PORT + 0}/status`
         )
-          .then((res) => res.text())
-          .then((text) => text === "live");
+            .then((res) => res.text())
+            .then((text) => text === "live");
 
         expect(isNodeLive).toBeTruthy();
 
         const isUserLive = await fetch(
-          `http://localhost:${BASE_USER_PORT + 0}/status`
+            `http://localhost:${BASE_USER_PORT + 0}/status`
         )
-          .then((res) => res.text())
-          .then((text) => text === "live");
+            .then((res) => res.text())
+            .then((text) => text === "live");
 
         expect(isUserLive).toBeTruthy();
       });
+
 
       it("Can start 10 node and 2 user", async () => {
         servers = await launchNetwork(10, 2);

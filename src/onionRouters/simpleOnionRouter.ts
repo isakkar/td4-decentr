@@ -1,6 +1,5 @@
 import bodyParser from "body-parser";
 import express from "express";
-import axios from "axios";
 import { BASE_ONION_ROUTER_PORT, REGISTRY_URL } from "../config";
 import { generateRsaKeyPair, exportPubKey } from "../crypto";
 
@@ -14,18 +13,25 @@ export async function simpleOnionRouter(nodeId: number) {
   let lastMessageDestination: any = null;
 
   // Generate RSA key pair
-  console.log(`Node ${nodeId}: Generating RSA key pair...`);
   const { publicKey, privateKey } = await generateRsaKeyPair();
 
   // Export public key
   const publicKeyBase64 = await exportPubKey(publicKey);
 
   // Register the node
-  console.log(`Node ${nodeId}: Registering on registry...`);
-  await axios.post(`${REGISTRY_URL}/registerNode`, {
-    nodeId,
-    pubKey: publicKeyBase64,
-  });
+  try {
+    const response = await fetch(`${REGISTRY_URL}/registerNode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nodeId, pubKey: publicKeyBase64 }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to register. Status: ${response.status}`);
+    }
+
+  } catch (err) {
+    process.exit(1); // Stop execution if registration fails
+  }
 
   // Implement the status route
   onionRouter.get("/status", (req, res) => {
@@ -38,7 +44,7 @@ export async function simpleOnionRouter(nodeId: number) {
   });
 
   // Route to get the last received decrypted message
-  onionRouter.get("/getLastReceivedEncryptedMessage", (req, res) => {
+  onionRouter.get("/getLastReceivedDecryptedMessage", (req, res) => {
     res.json({ result: lastReceivedDecryptedMessage });
   });
 

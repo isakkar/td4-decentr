@@ -29,6 +29,7 @@ export async function launchRegistry() {
   _registry.post("/registerNode", (req:Request, res:Response) => {
     const { nodeId, pubKey }: RegisterNodeBody = req.body; // Get the parameters
     nodes.push({ nodeId, pubKey }); // Register the node
+    res.status(200).json({ success: true, message: "Node registered" });
   });
 
   // Route to retrieve all registered nodes

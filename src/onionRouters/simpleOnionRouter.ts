@@ -1,7 +1,8 @@
 import bodyParser from "body-parser";
 import express from "express";
 import { BASE_ONION_ROUTER_PORT, REGISTRY_URL } from "../config";
-import { generateRsaKeyPair, exportPubKey } from "../crypto";
+import { generateRsaKeyPair, exportPubKey, exportPrvKey } from "../crypto";
+import { log, error } from "console";
 
 export async function simpleOnionRouter(nodeId: number) {
   const onionRouter = express();
@@ -54,8 +55,9 @@ export async function simpleOnionRouter(nodeId: number) {
   });
 
   // Route to get the node's private key
-  onionRouter.get("/getPrivateKey", (req, res) => {
-    res.json({ result: privateKey });
+  onionRouter.get("/getPrivateKey", async (req, res) => {
+    const privateKeyBase64 = await exportPrvKey(privateKey);
+    res.json({ result: privateKeyBase64 });
   });
 
   const server = onionRouter.listen(BASE_ONION_ROUTER_PORT + nodeId, () => {

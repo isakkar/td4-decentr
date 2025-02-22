@@ -40,8 +40,6 @@ export async function generateRsaKeyPair(): Promise<GenerateRsaKeyPair> {
 
   //return { publicKey: {publicKey} as any, privateKey: {privateKey} as any };
   return { publicKey, privateKey };
-  // remove this
-  //return { publicKey: {} as any, privateKey: {} as any };
 }
 
 // Export a crypto public key to a base64 string format
@@ -123,7 +121,7 @@ export async function rsaDecrypt(data: string, privateKey: webcrypto.CryptoKey):
       messageBuffer
   );
 
-  return new TextDecoder().decode(decryptedBuffer);
+  return arrayBufferToBase64(decryptedBuffer);
 }
 
 // ######################

@@ -174,7 +174,7 @@ export async function symEncrypt(key: webcrypto.CryptoKey, data: string): Promis
   // tip: encode the data to a uin8array with TextEncoder
   const encoder = new TextEncoder();
   const messageBytes = encoder.encode(data);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const iv = crypto.getRandomValues(new Uint8Array(16));
 
   const encryptedBuffer = await webcrypto.subtle.encrypt(
       { name: "AES-CBC", iv: iv },
@@ -194,8 +194,8 @@ export async function symDecrypt(strKey: string, encryptedData: string): Promise
   // implement this function to decrypt a base64 encoded message with a private key
   // tip: use the provided base64ToArrayBuffer function and use TextDecode to go back to a string format
   const encryptedBuffer = base64ToArrayBuffer(encryptedData);
-  const iv = encryptedBuffer.slice(0, 12);
-  const ciphertext = encryptedBuffer.slice(12);
+  const iv = encryptedBuffer.slice(0, 16);
+  const ciphertext = encryptedBuffer.slice(16);
   const key = await importSymKey(strKey);
 
   const decryptedBuffer = await webcrypto.subtle.decrypt(

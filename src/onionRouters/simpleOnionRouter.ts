@@ -1,7 +1,16 @@
 import bodyParser from "body-parser";
 import express from "express";
-import { BASE_ONION_ROUTER_PORT, REGISTRY_URL } from "../config";
-import { generateRsaKeyPair, exportPubKey, exportPrvKey } from "../crypto";
+import { BASE_ONION_ROUTER_PORT, REGISTRY_URL, BASE_USER_PORT } from "../config";
+import {
+  generateRsaKeyPair,
+  exportPubKey,
+  exportPrvKey,
+  importPrvKey,
+  rsaDecrypt,
+  importSymKey,
+  symDecrypt,
+  exportSymKey
+} from "../crypto";
 import { log, error } from "console";
 
 export async function simpleOnionRouter(nodeId: number) {
@@ -58,6 +67,55 @@ export async function simpleOnionRouter(nodeId: number) {
   onionRouter.get("/getPrivateKey", async (req, res) => {
     const privateKeyBase64 = await exportPrvKey(privateKey);
     res.json({ result: privateKeyBase64 });
+  });
+
+  // Route to receive a message
+  onionRouter.post("/message", async (req, res) => {
+    const {message}: { message: string } = req.body;
+    lastReceivedEncryptedMessage = message;
+
+    // Extract the encrypted symmetric key (first part of message)
+    const encryptedSymmetricKey = message.slice(0, 344);
+    const encryptedData = message.slice(344);
+
+    // Decrypt the symmetric key using our private key
+    const privateKeyBase64 = await exportPrvKey(privateKey);
+    if (!privateKeyBase64) {
+      throw new Error("Private key is null");
+    }
+    const privateKeyCryptoKey = await importPrvKey(privateKeyBase64);
+    const symmetricKeyBase64 = await rsaDecrypt(encryptedSymmetricKey, privateKeyCryptoKey);
+    const symmetricKey = await importSymKey(symmetricKeyBase64);
+    const strSymmetricKey = await exportSymKey(symmetricKey);
+
+    // Decrypt the payload with the symmetric key
+    const decryptedData = await symDecrypt(strSymmetricKey, encryptedData);
+
+    // Extract the next destination (first 10 chars of decrypted data)
+    const nextDestination = parseInt(decryptedData.slice(0, 10));
+    const actualMessage = decryptedData.slice(10);
+
+    lastReceivedDecryptedMessage = actualMessage;
+    lastMessageDestination = nextDestination;
+
+    if (nextDestination < 4000) {
+      // Final destination is a user, send the message there
+      log(`[USER] Forwarding to http://localhost:${BASE_USER_PORT + nextDestination}/message`)
+      await fetch(`http://localhost:${BASE_USER_PORT + nextDestination}/message`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message: actualMessage}),
+      });
+    } else {
+      // forward to the next onion router
+      log(`Forwarding to http://localhost:${BASE_ONION_ROUTER_PORT + nextDestination}/message`)
+      await fetch(`http://localhost:${BASE_ONION_ROUTER_PORT + nextDestination}/message`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message: actualMessage}),
+      });
+    }
+    res.send("success");
   });
 
   const server = onionRouter.listen(BASE_ONION_ROUTER_PORT + nodeId, () => {

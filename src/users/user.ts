@@ -3,6 +3,7 @@ import express from "express";
 import { BASE_USER_PORT } from "../config";
 import {RegisterNodeBody} from "@/src/registry/registry";
 import {createRandomSymmetricKey, exportSymKey, symEncrypt, rsaEncrypt} from "../crypto";
+import { log, error } from "console";
 
 export type SendMessageBody = {
   message: string;
@@ -34,6 +35,7 @@ export async function user(userId: number) {
 
   // Route to receive messages
   _user.post("/message", (req, res) => {
+    log("User received message:", req.body.message);
     const body = req.body; // Get the message
     lastReceivedMessage = body.message; // Update the variable
     res.send("success");

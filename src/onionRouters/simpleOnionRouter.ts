@@ -71,51 +71,53 @@ export async function simpleOnionRouter(nodeId: number) {
 
   // Route to receive a message
   onionRouter.post("/message", async (req, res) => {
-    const {message}: { message: string } = req.body;
-    lastReceivedEncryptedMessage = message;
+    try {
+      const { message }: { message: string } = req.body;
+      log(`Node ${nodeId} received message: ${message}\n`)
 
-    // Extract the encrypted symmetric key (first part of message)
-    const encryptedSymmetricKey = message.slice(0, 344);
-    const encryptedData = message.slice(344);
+      // Extract the encrypted symmetric key (first 344 chars) and the encrypted data
+      const encryptedSymmetricKey = message.slice(0, 344);
+      const encryptedData = message.slice(344);
 
-    // Decrypt the symmetric key using our private key
-    const privateKeyBase64 = await exportPrvKey(privateKey);
-    if (!privateKeyBase64) {
-      throw new Error("Private key is null");
-    }
-    const privateKeyCryptoKey = await importPrvKey(privateKeyBase64);
-    const symmetricKeyBase64 = await rsaDecrypt(encryptedSymmetricKey, privateKeyCryptoKey);
-    const symmetricKey = await importSymKey(symmetricKeyBase64);
-    const strSymmetricKey = await exportSymKey(symmetricKey);
+      // Decrypt the symmetric key using the node's private key
+      const privateKeyBase64 = await exportPrvKey(privateKey);
+      if (!privateKeyBase64) {
+        throw new Error("Private key is null");
+      }
+      const privateKeyCryptoKey = await importPrvKey(privateKeyBase64);
+      const symmetricKeyBase64 = await rsaDecrypt(encryptedSymmetricKey, privateKeyCryptoKey);
 
-    // Decrypt the payload with the symmetric key
-    const decryptedData = await symDecrypt(strSymmetricKey, encryptedData);
+      // Convert the decrypted symmetric key back to a CryptoKey
+      const symmetricKey = await importSymKey(symmetricKeyBase64);
+      const strSymmetricKey = await exportSymKey(symmetricKey);
 
-    // Extract the next destination (first 10 chars of decrypted data)
-    const nextDestination = parseInt(decryptedData.slice(0, 10));
-    const actualMessage = decryptedData.slice(10);
+      // Decrypt the message using the symmetric key
+      const decryptedData = await symDecrypt(strSymmetricKey, encryptedData);
 
-    lastReceivedDecryptedMessage = actualMessage;
-    lastMessageDestination = nextDestination;
+      log(`Just decrypted: ${decryptedData}\n`)
 
-    if (nextDestination < 4000) {
-      // Final destination is a user, send the message there
-      log(`[USER] Forwarding to http://localhost:${BASE_USER_PORT + nextDestination}/message`)
-      await fetch(`http://localhost:${BASE_USER_PORT + nextDestination}/message`, {
+      // Extract the next destination (first 10 chars of decrypted data)
+      const nextDestination = parseInt(decryptedData.slice(0, 10), 10);
+      const actualMessage = decryptedData.slice(10);
+
+      lastReceivedDecryptedMessage = actualMessage;
+      lastMessageDestination = nextDestination;
+
+      log(`Node ${nodeId} forwarding to port ${nextDestination} message: ${actualMessage}\n`);
+
+      // Forward to the next node or user
+      await fetch(`http://localhost:${nextDestination}/message`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message: actualMessage}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: actualMessage }),
       });
-    } else {
-      // forward to the next onion router
-      log(`Forwarding to http://localhost:${BASE_ONION_ROUTER_PORT + nextDestination}/message`)
-      await fetch(`http://localhost:${BASE_ONION_ROUTER_PORT + nextDestination}/message`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message: actualMessage}),
-      });
+
+      res.send("success");
+
+    } catch (err) {
+      console.error("Error in /message route:", err);
+      res.status(500).json({ error: "Failed to process message" });
     }
-    res.send("success");
   });
 
   const server = onionRouter.listen(BASE_ONION_ROUTER_PORT + nodeId, () => {

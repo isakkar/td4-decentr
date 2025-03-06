@@ -73,7 +73,6 @@ export async function simpleOnionRouter(nodeId: number) {
   onionRouter.post("/message", async (req, res) => {
     try {
       const { message }: { message: string } = req.body;
-      log(`Node ${nodeId} received message: ${message}\n`)
       lastReceivedEncryptedMessage = message;
 
       // Extract the encrypted symmetric key (first 344 chars) and the encrypted data
@@ -95,7 +94,6 @@ export async function simpleOnionRouter(nodeId: number) {
       // Decrypt the message using the symmetric key
       const decryptedData = await symDecrypt(strSymmetricKey, encryptedData);
 
-      log(`Just decrypted: ${decryptedData}\n`)
       lastReceivedDecryptedMessage = decryptedData;
 
       // Extract the next destination (first 10 chars of decrypted data)
@@ -104,8 +102,6 @@ export async function simpleOnionRouter(nodeId: number) {
 
       lastReceivedDecryptedMessage = actualMessage;
       lastMessageDestination = nextDestination;
-
-      log(`Node ${nodeId} forwarding to port ${nextDestination} message: ${actualMessage}\n`);
 
       // Forward to the next node or user
       await fetch(`http://localhost:${nextDestination}/message`, {

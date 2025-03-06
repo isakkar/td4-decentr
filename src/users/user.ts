@@ -41,9 +41,7 @@ export async function user(userId: number) {
 
   // Route to receive messages
   _user.post("/message", (req, res) => {
-    log("Received request body:", req.body); // Log the full request
     const message = req.body.message; // Get the message
-    log(`User ${userId} received message: ${message}`);
     lastReceivedMessage = message; // Update the variable
     res.send("success");
   });
@@ -52,7 +50,6 @@ export async function user(userId: number) {
   _user.post("/sendMessage", async (req, res) => {
     try {
       const { message, destinationUserId }: SendMessageBody = req.body;
-      log(`User ${userId} sending message: ${message}`);
 
       // Fetch available nodes from registry
       const response = await fetch("http://localhost:8080/getNodeRegistry");
@@ -67,7 +64,6 @@ export async function user(userId: number) {
       const selectedNodes = nodes
           .sort(() => Math.random() - 0.5) // Shuffle nodes
           .slice(0, 3); // Take the first 3
-      console.log(`Selected nodes:`, selectedNodes.map(n => n.nodeId));
 
       // Encrypt message in layers (from last to first node)
       let encryptedMessage = message;
@@ -88,7 +84,6 @@ export async function user(userId: number) {
 
         // Concatenate destination and encrypted message, then encrypt it
         const concatenatedMessage = nextDestinationString + encryptedMessage;
-        log("CONCAT MESSAGE", concatenatedMessage)
         const encryptedLayer = await symEncrypt(symmetricKey, concatenatedMessage);
 
         // Encrypt the symmetric key with the node's RSA public key

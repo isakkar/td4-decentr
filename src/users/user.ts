@@ -17,6 +17,7 @@ export async function user(userId: number) {
 
   let lastReceivedMessage: any = null;
   let lastSentMessage: any = null;
+  let lastCircuit: number[] = [-1, -1, -1];
 
   // Implement the status route
   _user.get("/status", (req, res) => {
@@ -32,6 +33,11 @@ export async function user(userId: number) {
   _user.get("/getLastSentMessage", (req, res) => {
     res.json({ result: lastSentMessage });
   });
+
+  // Route to get the last circuit the user used
+  _user.get("/getLastCircuit", (req, res) => {
+    res.json({ result: lastCircuit });
+  })
 
   // Route to receive messages
   _user.post("/message", (req, res) => {
@@ -68,6 +74,7 @@ export async function user(userId: number) {
 
       for (let i = 2; i >= 0; i--) {
         const node = selectedNodes[i];
+        lastCircuit[i] = node.nodeId; // store in circuit variable
 
         // Generate a symmetric key for this node
         const symmetricKey = await createRandomSymmetricKey();
